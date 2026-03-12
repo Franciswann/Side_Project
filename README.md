@@ -1,6 +1,6 @@
 # Simple Web Server in Go
 
-A simple HTTP server built with Go using only the standary library (`net/http`).
+A simple HTTP server built with Go using only the standard library (`net/http`).
 
 ## Features
 - GET `/` → returns "Hello World"
