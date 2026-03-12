@@ -20,6 +20,7 @@ func GreetHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hi, %s!", name)
 }
 
+// main starts the HTTP server on port 8080
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", HelloHandler)
