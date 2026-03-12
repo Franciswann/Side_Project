@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -17,4 +18,15 @@ func HelloHandler(w http.ResponseWriter, r *http.Request) {
 func GreetHandler(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimPrefix(r.URL.Path, "/greet/")
 	fmt.Fprintf(w, "Hi, %s!", name)
+}
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", HelloHandler)
+	mux.HandleFunc("/greet/", GreetHandler)
+
+	log.Println("Server starting on :8080")
+	if err := http.ListenAndServe(":8080", mux); err != nil {
+		log.Fatal(err)
+	}
 }
