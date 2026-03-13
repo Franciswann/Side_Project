@@ -5,6 +5,7 @@ import (
 	"net/http"
 )
 
+// main starts the HTTP server on port 8080
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", HelloHandler)
