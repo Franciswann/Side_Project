@@ -1,24 +1,6 @@
-# Simple Web Server in Go
+# Side Projects
 
-A simple HTTP server built with Go using only the standard library (`net/http`).
+This repository contains my side projects for practicing Go and backend development.
 
-## Features
-- GET `/` → returns "Hello World"
-- GET `/greet/{name}` → returns "Hi, {name}!"
-
-## How to run
-```bash
-go run .
-```
-
-## How to test
-```bash
-go test -v
-```
-
----
-
-# Learning points
-- Practiced **Test-Driven Development(TDD)** with `httptest`
-- Used `http.NewServeMux()` for routing
-- Handled dynamic URL path with `strings.TrimPrefix`
+## Projects
+- [simple-web-server](./simple-web-server): A simple HTTP server with JSON API and TDD.
