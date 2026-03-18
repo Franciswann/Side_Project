@@ -7,9 +7,14 @@ import (
 
 func main() {
 
-	http.HandleFunc("/musics", ListMusics)
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /musics", ListMusics)
+	mux.HandleFunc("POST /musics", CreateMusic)
+
+	// http.HandleFunc("/musics", ListMusics)
 
 	log.Println("Running...")
 
-	http.ListenAndServe(":8080", nil)
+	// ListenAndServe uses the configurable mux
+	http.ListenAndServe(":8080", mux)
 }
