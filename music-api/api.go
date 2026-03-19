@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -43,7 +42,7 @@ func ListMusics(w http.ResponseWriter, r *http.Request) {
 	data, err := json.Marshal(musicList)
 	// neet to fix, make it show on curl HTTP, and show statusCode
 	if err != nil {
-		fmt.Fprintf(w, string(http.StatusInternalServerError))
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -52,15 +51,20 @@ func ListMusics(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateMusic(w http.ResponseWriter, r *http.Request) {
-	// JSON body
 
-	// var newMusic Music
-	// const newSong = `{"title":"Blinding Lights","artist":"The Weekend"}`
+	var newMusic Music
 
-	// dec := json.NewDecoder(strings.NewReader(newSong)).Decode(&newMusic)
+	if err := json.NewDecoder(r.Body).Decode(&newMusic); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("data has some problem"))
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		data, _ := json.Marshal(newMusic)
+		w.Write(data)
+	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("POST received"))
+	// w.Header().Set("Content-Type", "application/json")
+	// w.WriteHeader(http.StatusOK)
 
 }
