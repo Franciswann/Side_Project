@@ -40,9 +40,9 @@ func ListMusics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data, err := json.Marshal(musicList)
-	// neet to fix, make it show on curl HTTP, and show statusCode
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -54,17 +54,32 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 
 	var newMusic Music
 
+	w.Header().Set("Content-Type", "application/json")
+
 	if err := json.NewDecoder(r.Body).Decode(&newMusic); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("data has some problem"))
+		w.Write([]byte("Marshaling failed."))
+		return
+
 	} else {
-		w.Header().Set("Content-Type", "application/json")
+		maxID := 0
+		for i, _ := range musics {
+			if i > maxID {
+				maxID = i
+			}
+		}
+		newID := maxID + 1
+		newMusic.Id = newID
+		musics[newID] = newMusic
+
+		data, err := json.Marshal(newMusic)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
 		w.WriteHeader(http.StatusCreated)
-		data, _ := json.Marshal(newMusic)
 		w.Write(data)
 	}
-
-	// w.Header().Set("Content-Type", "application/json")
-	// w.WriteHeader(http.StatusOK)
 
 }
