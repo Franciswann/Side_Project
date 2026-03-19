@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"path"
 )
 
 type Music struct {
@@ -82,4 +84,11 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 		w.Write(data)
 	}
 
+}
+
+func GetMusic(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("heree"))
+
+	path := path.Base(r.URL.Path)
+	fmt.Println(path)
 }

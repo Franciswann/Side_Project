@@ -9,12 +9,15 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /musics", ListMusics)
-	mux.HandleFunc("POST /musics", CreateMusic)
+	// GetMusic handles GET requests to /musics/{id}
+	// Example: GET /musics/4
+	mux.HandleFunc("GET /musics/{id}", GetMusic)
 
-	// http.HandleFunc("/musics", ListMusics)
+	mux.HandleFunc("POST /musics", CreateMusic)
 
 	log.Println("Running...")
 
 	// ListenAndServe uses the configurable mux
+	// http://localhost:8080/
 	http.ListenAndServe(":8080", mux)
 }
