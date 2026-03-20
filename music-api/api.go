@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"strconv"
 )
 
 type Music struct {
@@ -87,8 +88,24 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetMusic(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("heree"))
 
 	path := path.Base(r.URL.Path)
-	fmt.Println(path)
+	id, _ := strconv.Atoi(path)
+
+	// music, ok:= musics[id] --- Comma-ok idiom
+
+	// if exist(ok = true) then return music info and status 200
+	// if not exist return "Music not found" and status 400
+	if music, ok := musics[id]; ok {
+		music, err := json.Marshal(music)
+		if err != nil {
+			fmt.Println("Marshaling failed")
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write(music)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Music not found"))
+	}
 }
