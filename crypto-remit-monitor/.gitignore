@@ -1,0 +1,15 @@
+# Ignore environment variables
+.env
+
+# Ignore binary executables
+crypto-remit-monitor
+main
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Ignore local OS metadata
+.DS_Store
+Thumbs.db
