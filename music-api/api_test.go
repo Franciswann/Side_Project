@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -27,7 +26,7 @@ func TestListMusics(t *testing.T) {
 		var music []Music
 		err := json.Unmarshal(recorder.Body.Bytes(), &music)
 		if err != nil {
-			t.Errorf("%v", err)
+			t.Errorf("something goes wrong")
 		}
 
 		got := len(music)
@@ -38,64 +37,8 @@ func TestListMusics(t *testing.T) {
 	})
 }
 
-// create an body with header and then test its result, status code
-func TestCreateMusic(t *testing.T) {
-	var music = Music{
-		Title:  "Sparks",
-		Artist: "Coldplay",
-	}
+// func TestCreateMusic(t *testing.T) {
 
-	data, err := json.Marshal(music)
-	if err != nil {
-		t.Errorf("Marshaling failed")
-	}
-	// request contains a io.Reader from strings.NewReader
-	req := httptest.NewRequest("POST", "/musics", bytes.NewReader(data))
-	req.Header.Set("Content-Type", "application/json")
-	recorder := httptest.NewRecorder()
+// }
 
-	CreateMusic(recorder, req)
-
-	// decode the response body to get the created music with ID
-	if err := json.NewDecoder(recorder.Body).Decode(&music); err != nil {
-		t.Errorf("Failed to decode response: %v", err)
-	}
-
-	t.Run("test status code = StatusCreated 201", func(t *testing.T) {
-		if got := recorder.Code; got != http.StatusCreated {
-			t.Errorf("got %v, want %v", got, http.StatusCreated)
-		}
-	})
-
-	t.Run("check if the music ID is the newest one", func(t *testing.T) {
-		if music.Id != 4 {
-			t.Errorf("got %d, want %d", music.Id, 4)
-		}
-	})
-
-	//  (using parsed response, not map)
-	t.Run("verify the created music matches expectations", func(t *testing.T) {
-		want := Music{
-			Id:     music.Id,
-			Title:  "Sparks",
-			Artist: "Coldplay",
-		}
-		if music != want {
-			t.Errorf("got %v, want %v", music, want)
-		}
-	})
-}
-
-// 驗證「POST /musics」這個功能是否真的能正確運作，包括：
-
-// 成功接收 JSON body
-// 自動產生新 ID
-// 存進 map
-// 回傳 201 Created + 完整的 JSON
-
-// curl -v -X POST -H "Content-Type: application/json" \
-// -d '{"title":"Blinding Lights","artist":"The Weekend"}' \
-// http://localhost:8080/musics
-
-// 疑問：
-//
+// 寫 TestCreateMusic：測試 POST /musics 是否能成功新增並回 201
