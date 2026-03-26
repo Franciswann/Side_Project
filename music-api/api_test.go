@@ -1,10 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -40,26 +41,31 @@ func TestListMusics(t *testing.T) {
 
 // create an body with header and then test its result, status code
 func TestCreateMusic(t *testing.T) {
-	var music = Music{
-		Title:  "Sparks",
-		Artist: "Coldplay",
-	}
 
-	data, err := json.Marshal(music)
-	if err != nil {
-		t.Errorf("Marshaling failed")
-	}
+	var newMusic Music
+
+	// back up global map 'musics'
+	originalMusics := maps.Clone(musics)
+
+	jsonBody := `{"title":"Sparks","artist":"Coldplay"}`
+
 	// request contains a io.Reader from strings.NewReader
-	req := httptest.NewRequest("POST", "/musics", bytes.NewReader(data))
+	req := httptest.NewRequest("POST", "/musics", strings.NewReader(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 
 	CreateMusic(recorder, req)
 
 	// decode the response body to get the created music with ID
-	if err := json.NewDecoder(recorder.Body).Decode(&music); err != nil {
+	if err := json.NewDecoder(recorder.Body).Decode(&newMusic); err != nil {
 		t.Errorf("Failed to decode response: %v", err)
 	}
+
+	t.Run("check Header's validation", func(t *testing.T) {
+		if got := recorder.Header().Get("Content-Type"); got != "application/json" {
+			t.Errorf("got %s, want %s", got, "application/json")
+		}
+	})
 
 	t.Run("test status code = StatusCreated 201", func(t *testing.T) {
 		if got := recorder.Code; got != http.StatusCreated {
@@ -68,24 +74,24 @@ func TestCreateMusic(t *testing.T) {
 	})
 
 	t.Run("check if the music ID is the newest one", func(t *testing.T) {
-		if music.Id != 4 {
-			t.Errorf("got %d, want %d", music.Id, 4)
+		if newMusic.Id != len(originalMusics)+1 {
+			t.Errorf("got %d, want %d", newMusic.Id, len(musics))
 		}
 	})
 
 	//  (using parsed response, not map)
 	t.Run("verify the created music matches expectations", func(t *testing.T) {
 		want := Music{
-			Id:     music.Id,
+			Id:     len(originalMusics) + 1,
 			Title:  "Sparks",
 			Artist: "Coldplay",
 		}
-		if music != want {
-			t.Errorf("got %v, want %v", music, want)
+		if newMusic != want {
+			t.Errorf("got %v, want %v", newMusic, want)
 		}
 	})
-}
 
-// curl -v -X POST -H "Content-Type: application/json" \
-// -d '{"title":"Blinding Lights","artist":"The Weekend"}' \
-// http://localhost:8080/musics
+	// restore data
+	musics = maps.Clone(originalMusics)
+
+}
