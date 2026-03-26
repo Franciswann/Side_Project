@@ -4,3 +4,5 @@ This repository contains my side projects for practicing Go and backend developm
 
 ## Projects
 - [simple-web-server](./simple-web-server): A simple HTTP server with JSON API and TDD.
+
+- [music-api](./music-api): A simple REST API for managing music tracks, built with Go stdlib only (no external frameworks).
