@@ -1,11 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"path"
 	"strconv"
+
+	_ "github.com/lib/pq"
 )
 
 type Music struct {
@@ -15,6 +17,7 @@ type Music struct {
 }
 
 var musics = make(map[int]Music)
+var db *sql.DB
 
 func init() {
 	musics[1] = Music{
@@ -34,7 +37,23 @@ func init() {
 	}
 }
 
+func initDB() error {
+	// insert data to table 'musics'
+	for _, music := range musics {
+
+		query := `INSERT INTO musics (title, artist)
+				  VALUES ($1, $2)`
+		_, err := db.Exec(query, music.Title, music.Artist)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// List all the musics
 func ListMusics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 
 	musicList := []Music{}
 
@@ -48,16 +67,16 @@ func ListMusics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(data)
+
 }
 
+// create new music
 func CreateMusic(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 
 	var newMusic Music
-
-	w.Header().Set("Content-Type", "application/json")
 
 	if err := json.NewDecoder(r.Body).Decode(&newMusic); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -87,7 +106,9 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// fetch specific music
 func GetMusic(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 
 	path := path.Base(r.URL.Path)
 	id, _ := strconv.Atoi(path)
@@ -97,15 +118,67 @@ func GetMusic(w http.ResponseWriter, r *http.Request) {
 	// if exist(ok = true) then return music info and status 200
 	// if not exist return "Music not found" and status 400
 	if music, ok := musics[id]; ok {
-		music, err := json.Marshal(music)
+		data, err := json.Marshal(music)
 		if err != nil {
-			fmt.Println("Marshaling failed")
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Invalid JSON format"))
+			return
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write(music)
+		w.Write(data)
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("Music not found"))
+	}
+}
+
+// Delete specific music
+func DeleteMusic(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	path := path.Base(r.URL.Path)
+	id, _ := strconv.Atoi(path)
+
+	// delete(map, key)
+	if _, ok := musics[id]; ok {
+		delete(musics, id)
+		w.WriteHeader(http.StatusNoContent)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Music not found"))
+	}
+}
+
+// Parsing request body and update musics
+func UpdateMusic(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var updateMusic Music
+
+	// parsing and decoding json and store into upupdateMusic
+	if err := json.NewDecoder(r.Body).Decode(&updateMusic); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Marshaling failed."))
+		return
+	} else {
+		path := path.Base(r.URL.Path)
+		id, _ := strconv.Atoi(path)
+
+		if _, ok := musics[id]; ok {
+			w.WriteHeader(http.StatusOK)
+			updateMusic.Id = id
+			musics[id] = updateMusic
+
+			data, err := json.Marshal(updateMusic)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			w.Write(data)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
 	}
 }
