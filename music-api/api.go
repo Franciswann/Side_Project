@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"path"
 	"strconv"
@@ -38,11 +39,11 @@ func init() {
 }
 
 func initDB() error {
-	// insert data to table 'musics'
+	// insert data to table 'musics' with conflict handling
 	for _, music := range musics {
-
-		query := `INSERT INTO musics (title, artist)
-				  VALUES ($1, $2)`
+		query := `INSERT INTO musics (title, artist) 
+				  VALUES ($1, $2) 
+				  ON CONFLICT (title, artist) DO NOTHING;`
 		_, err := db.Exec(query, music.Title, music.Artist)
 		if err != nil {
 			return err
@@ -57,8 +58,25 @@ func ListMusics(w http.ResponseWriter, r *http.Request) {
 
 	musicList := []Music{}
 
-	for _, m := range musics {
-		musicList = append(musicList, m)
+	// delete this part
+
+	// for _, m := range musics {
+	// 	musicList = append(musicList, m)
+	// }
+	rows, err := db.Query("SELECT * FROM musics")
+	if err != nil {
+		log.Println(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		// musicList := []Music{}
+		var musicInRows Music
+		if err := rows.Scan(&musicInRows.Id, &musicInRows.Title, &musicInRows.Artist); err != nil {
+			log.Println(err)
+		}
+
+		musicList = append(musicList, musicInRows)
 	}
 
 	data, err := json.Marshal(musicList)
