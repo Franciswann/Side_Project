@@ -39,7 +39,7 @@ func init() {
 }
 
 func initDB() error {
-	// insert data to table 'musics' with conflict handling
+	// insert initial data to table 'musics' with conflict handling
 	for _, music := range musics {
 		query := `INSERT INTO musics (title, artist) 
 				  VALUES ($1, $2) 
@@ -56,8 +56,6 @@ func initDB() error {
 func ListMusics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	musicList := []Music{}
-
 	// delete this part
 
 	// for _, m := range musics {
@@ -69,13 +67,15 @@ func ListMusics(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
+	musicList := []Music{}
+
+	// reverse musics data table and append into musicList
 	for rows.Next() {
 		// musicList := []Music{}
 		var musicInRows Music
 		if err := rows.Scan(&musicInRows.Id, &musicInRows.Title, &musicInRows.Artist); err != nil {
 			log.Println(err)
 		}
-
 		musicList = append(musicList, musicInRows)
 	}
 
@@ -102,16 +102,31 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 		return
 
 	} else {
-		maxID := 0
-		for i, _ := range musics {
-			if i > maxID {
-				maxID = i
-			}
-		}
-		newID := maxID + 1
-		newMusic.Id = newID
-		musics[newID] = newMusic
+		// use id from postgreSQL instead, the number would be serial automatic generate
 
+		// maxID := 0
+		// for i, _ := range musics {
+		// 	if i > maxID {
+		// 		maxID = i
+		// 	}
+		// }
+		// newID := maxID + 1
+		// newMusic.Id = newID
+		// musics[newID] = newMusic
+
+		// INSERT without Id, it would be serial automatic generate
+		query := `INSERT INTO musics (title, artist)
+				  VALUES ($1, $2)
+				  ON CONFLICT (title, artist) DO NOTHING
+				  RETURNING id;`
+
+		if err := db.QueryRow(query, newMusic.Title, newMusic.Artist).Scan(&newMusic.Id); err != nil {
+			log.Println(err)
+		}
+
+		// FIXME: Handle duplicate music insertion properly
+		// - ID not correctly set on conflict
+		// - Should return proper error response instead of id=0
 		data, err := json.Marshal(newMusic)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
