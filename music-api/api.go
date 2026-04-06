@@ -39,7 +39,7 @@ func init() {
 }
 
 func initDB() error {
-	// insert data to table 'musics' with conflict handling
+	// insert initial data to table 'musics' with conflict handling
 	for _, music := range musics {
 		query := `INSERT INTO musics (title, artist) 
 				  VALUES ($1, $2) 
@@ -56,8 +56,6 @@ func initDB() error {
 func ListMusics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	musicList := []Music{}
-
 	// delete this part
 
 	// for _, m := range musics {
@@ -69,13 +67,15 @@ func ListMusics(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
+	musicList := []Music{}
+
+	// reverse musics data table and append into musicList
 	for rows.Next() {
 		// musicList := []Music{}
 		var musicInRows Music
 		if err := rows.Scan(&musicInRows.Id, &musicInRows.Title, &musicInRows.Artist); err != nil {
 			log.Println(err)
 		}
-
 		musicList = append(musicList, musicInRows)
 	}
 
@@ -100,17 +100,30 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Marshaling failed."))
 		return
-
 	} else {
-		maxID := 0
-		for i, _ := range musics {
-			if i > maxID {
-				maxID = i
-			}
+		// Check if music with same title and artist already exists
+		var existingId int
+		checkQuery := `SELECT id FROM musics WHERE title=$1 AND artist=$2`
+		err := db.QueryRow(checkQuery, newMusic.Title, newMusic.Artist).Scan(&existingId)
+
+		if err == nil {
+			// Music already exists
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte("Music with this title and artist already exists"))
+			return
 		}
-		newID := maxID + 1
-		newMusic.Id = newID
-		musics[newID] = newMusic
+
+		// INSERT without Id, it would be serial automatic generate
+		query := `INSERT INTO musics (title, artist)
+				  VALUES ($1, $2)
+				  RETURNING id;`
+
+		if err := db.QueryRow(query, newMusic.Title, newMusic.Artist).Scan(&newMusic.Id); err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Failed to create music"))
+			return
+		}
 
 		data, err := json.Marshal(newMusic)
 		if err != nil {
