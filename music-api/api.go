@@ -100,33 +100,31 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Marshaling failed."))
 		return
-
 	} else {
-		// use id from postgreSQL instead, the number would be serial automatic generate
+		// Check if music with same title and artist already exists
+		var existingId int
+		checkQuery := `SELECT id FROM musics WHERE title=$1 AND artist=$2`
+		err := db.QueryRow(checkQuery, newMusic.Title, newMusic.Artist).Scan(&existingId)
 
-		// maxID := 0
-		// for i, _ := range musics {
-		// 	if i > maxID {
-		// 		maxID = i
-		// 	}
-		// }
-		// newID := maxID + 1
-		// newMusic.Id = newID
-		// musics[newID] = newMusic
+		if err == nil {
+			// Music already exists
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte("Music with this title and artist already exists"))
+			return
+		}
 
 		// INSERT without Id, it would be serial automatic generate
 		query := `INSERT INTO musics (title, artist)
 				  VALUES ($1, $2)
-				  ON CONFLICT (title, artist) DO NOTHING
 				  RETURNING id;`
 
 		if err := db.QueryRow(query, newMusic.Title, newMusic.Artist).Scan(&newMusic.Id); err != nil {
 			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Failed to create music"))
+			return
 		}
 
-		// FIXME: Handle duplicate music insertion properly
-		// - ID not correctly set on conflict
-		// - Should return proper error response instead of id=0
 		data, err := json.Marshal(newMusic)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
