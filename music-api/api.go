@@ -135,7 +135,6 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
 		w.Write(data)
 	}
-
 }
 
 // fetch specific music
@@ -155,7 +154,7 @@ func GetMusic(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(fmt.Sprintf("no music with id %d", id)))
 	case err != nil:
-		log.Fatalf("query error: %v\n", err)
+		log.Printf("query error: %v\n", err)
 	// successfully found the music
 	default:
 		data, err := json.Marshal(searchedMusic)

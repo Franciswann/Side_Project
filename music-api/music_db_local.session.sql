@@ -1,0 +1,1 @@
+SELECT * FROM musics WHERE artist='Joji';
