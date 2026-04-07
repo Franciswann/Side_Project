@@ -110,7 +110,7 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			// Music already exists
 			w.WriteHeader(http.StatusConflict)
-			w.Write([]byte("Music with this title and artist already exists"))
+			w.Write([]byte(fmt.Sprintf("Music with %s and %s already exists", newMusic.Title, newMusic.Artist)))
 			return
 		}
 
@@ -148,7 +148,7 @@ func GetMusic(w http.ResponseWriter, r *http.Request) {
 	path := path.Base(r.URL.Path)
 	id, _ := strconv.Atoi(path)
 
-	err := db.QueryRow(`SELECT id, title, artist FROM musics WHERE id=$1`, id).Scan(&searchedMusic.Id, &searchedMusic.Title, &searchedMusic.Artist)
+	err := db.QueryRow(`SELECT id, title, artist FROM musics WHERE id=$1;`, id).Scan(&searchedMusic.Id, &searchedMusic.Title, &searchedMusic.Artist)
 	switch {
 	// couldn't find the music
 	case err == sql.ErrNoRows:
@@ -176,7 +176,7 @@ func DeleteMusic(w http.ResponseWriter, r *http.Request) {
 	path := path.Base(r.URL.Path)
 	id, _ := strconv.Atoi(path)
 
-	result, err := db.Exec(`DELETE FROM musics WHERE id=$1`, id)
+	result, err := db.Exec(`DELETE FROM musics WHERE id=$1;`, id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Printf("Delete error: %v", err)
@@ -200,35 +200,50 @@ func DeleteMusic(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Parsing request body and update musics
+// Update specific music by ID
 func UpdateMusic(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var updateMusic Music
 
-	// parsing and decoding json and store into upupdateMusic
+	// Parse and decode JSON request body
 	if err := json.NewDecoder(r.Body).Decode(&updateMusic); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Marshaling failed."))
 		return
 	} else {
+		// Extract music ID from URL path: /musics/{id}
 		path := path.Base(r.URL.Path)
 		id, _ := strconv.Atoi(path)
 
-		if _, ok := musics[id]; ok {
-			w.WriteHeader(http.StatusOK)
-			updateMusic.Id = id
-			musics[id] = updateMusic
+		// Update music record and return updated data
+		updateQuery := `UPDATE musics
+						SET title=$1, artist=$2
+						WHERE id=$3
+						RETURNING id, title, artist;`
+		err := db.QueryRow(updateQuery, updateMusic.Title, updateMusic.Artist, id).Scan(&updateMusic.Id, &updateMusic.Title, &updateMusic.Artist)
 
-			data, err := json.Marshal(updateMusic)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			w.Write(data)
-		} else {
+		// Music not found
+		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(fmt.Sprintf("no music with id: %d", id)))
+			return
 		}
+
+		// Database error
+		if err != nil {
+			log.Printf("Update error: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		// Return updated music data
+		data, err := json.Marshal(updateMusic)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write(data)
 	}
 }
