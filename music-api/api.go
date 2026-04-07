@@ -172,17 +172,32 @@ func GetMusic(w http.ResponseWriter, r *http.Request) {
 func DeleteMusic(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	// Extract id from URL path: /musics/{id}
 	path := path.Base(r.URL.Path)
 	id, _ := strconv.Atoi(path)
 
-	// delete(map, key)
-	if _, ok := musics[id]; ok {
-		delete(musics, id)
-		w.WriteHeader(http.StatusNoContent)
-	} else {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("Music not found"))
+	result, err := db.Exec(`DELETE FROM musics WHERE id=$1`, id)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("Delete error: %v", err)
+		return
 	}
+
+	// rows: the number of rows afftected by DELETE
+	rows, err := result.RowsAffected()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("RowsAffected error: %v", err)
+		return
+	}
+	// music not found
+	if rows == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(fmt.Sprintf("no music with id %d", id)))
+		return
+	}
+	// Successfully deleted
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // Parsing request body and update musics
