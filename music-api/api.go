@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"path"
@@ -141,26 +142,29 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 func GetMusic(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	var searchedMusic Music
+
+	// Extract id from URL path: /musics/{id}
 	path := path.Base(r.URL.Path)
 	id, _ := strconv.Atoi(path)
 
-	// music, ok:= musics[id] --- Comma-ok idiom
-
-	// if exist(ok = true) then return music info and status 200
-	// if not exist return "Music not found" and status 400
-	if music, ok := musics[id]; ok {
-		data, err := json.Marshal(music)
+	err := db.QueryRow(`SELECT id, title, artist FROM musics WHERE id=$1`, id).Scan(&searchedMusic.Id, &searchedMusic.Title, &searchedMusic.Artist)
+	switch {
+	// couldn't find the music
+	case err == sql.ErrNoRows:
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(fmt.Sprintf("no music with id %d", id)))
+	case err != nil:
+		log.Fatalf("query error: %v\n", err)
+	// successfully found the music
+	default:
+		data, err := json.Marshal(searchedMusic)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Invalid JSON format"))
 			return
 		}
-
 		w.WriteHeader(http.StatusOK)
 		w.Write(data)
-	} else {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("Music not found"))
 	}
 }
 
