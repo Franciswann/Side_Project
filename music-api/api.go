@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"path"
 	"strconv"
+	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 )
 
 type Music struct {
@@ -53,45 +55,73 @@ func initDB() error {
 	return nil
 }
 
-// List all the musics
+// ListMusics list all the musics
 func ListMusics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// delete this part
-
-	// for _, m := range musics {
-	// 	musicList = append(musicList, m)
-	// }
-	rows, err := db.Query("SELECT * FROM musics")
-	if err != nil {
-		log.Println(err)
-	}
-	defer rows.Close()
-
 	musicList := []Music{}
 
-	// reverse musics data table and append into musicList
-	for rows.Next() {
-		// musicList := []Music{}
-		var musicInRows Music
-		if err := rows.Scan(&musicInRows.Id, &musicInRows.Title, &musicInRows.Artist); err != nil {
+	val, err := rdb.Get(ctx, "all_musics").Result()
+
+	// if key does not exist, extract data from database and store data into Redis
+	if err == redis.Nil {
+
+		rows, err := db.Query("SELECT * FROM musics")
+		if err != nil {
 			log.Println(err)
 		}
-		musicList = append(musicList, musicInRows)
+		defer rows.Close()
+
+		musicList := []Music{}
+
+		// reverse musics data table and append into musicList
+		for rows.Next() {
+			// musicList := []Music{}
+			var musicInRows Music
+			if err := rows.Scan(&musicInRows.Id, &musicInRows.Title, &musicInRows.Artist); err != nil {
+				log.Println(err)
+			}
+			musicList = append(musicList, musicInRows)
+		}
+
+		data, err := json.Marshal(musicList)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		// store cache data in redis with 5-minute expiration
+		rdb.Set(ctx, "all_musics", data, 5*time.Minute)
+
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write(data); err != nil {
+			log.Printf("Failed to write response: %v", err)
+			return
+		}
+
+	} else {
+		w.WriteHeader(http.StatusOK)
+		// Unmarshal cached data from redis for data validation
+		err := json.Unmarshal([]byte(val), &musicList)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		data, err := json.Marshal(musicList)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if _, err = w.Write(data); err != nil {
+			log.Printf("Failed to write response: %v", err)
+			return
+		}
 	}
-
-	data, err := json.Marshal(musicList)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write(data)
-
 }
 
-// create new music
+// CreateMusic create new music
 func CreateMusic(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -110,7 +140,9 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			// Music already exists
 			w.WriteHeader(http.StatusConflict)
-			w.Write([]byte(fmt.Sprintf("Music with %s and %s already exists", newMusic.Title, newMusic.Artist)))
+			if _, err := w.Write([]byte(fmt.Sprintf("Music with %s and %s already exists", newMusic.Title, newMusic.Artist))); err != nil {
+				log.Printf("Failed to write response: %v", err)
+			}
 			return
 		}
 
@@ -137,7 +169,7 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// fetch specific music
+// GetMusic fetch specific music
 func GetMusic(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -167,7 +199,7 @@ func GetMusic(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Delete specific music
+// DeleteMusic deletes a specific music
 func DeleteMusic(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -182,7 +214,7 @@ func DeleteMusic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// rows: the number of rows afftected by DELETE
+	// rows: the number of rows affected by DELETE
 	rows, err := result.RowsAffected()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -199,7 +231,7 @@ func DeleteMusic(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Update specific music by ID
+// UpdateMusic update specific music by ID
 func UpdateMusic(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
