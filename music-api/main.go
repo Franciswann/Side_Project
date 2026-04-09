@@ -5,11 +5,35 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"context"
+
+	"github.com/redis/go-redis/v9"
 )
+
+var ctx = context.Background()
+
+func testRedisConnections() {
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
+	})
+	// defer rdb.Close()
+
+	// test connection
+	_, err := rdb.Ping(ctx).Result()
+	if err != nil {
+		log.Printf("connection failed: %s", err)
+	} else {
+		log.Printf("Connected to Redis successfully")
+	}
+
+}
 
 // This Music API can let user Create, Read, Update nad Delete musics
 func main() {
-
+	testRedisConnections()
 	// connecting to pq driver
 	connStr := "host=localhost port=5432 user=wanchaochun dbname=music_db sslmode=disable"
 	var err error
