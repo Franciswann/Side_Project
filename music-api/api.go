@@ -145,7 +145,9 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 		if err := db.QueryRow(query, newMusic.Title, newMusic.Artist).Scan(&newMusic.Id); err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Failed to create music"))
+			if _, err = w.Write([]byte("Failed to create music")); err != nil {
+				log.Printf("Failed to write response: %v", err)
+			}
 			return
 		}
 
@@ -159,11 +161,15 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 		err = rdb.Del(ctx, "all_musics").Err()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(fmt.Sprintf("Failed to invalidate cache: %v", err)))
+			if _, err = w.Write([]byte(fmt.Sprintf("Failed to invalidate cache: %v", err))); err != nil {
+				log.Printf("Failed to write response: %v", err)
+			}
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		w.Write(data)
+		if _, err = w.Write(data); err != nil {
+			log.Printf("Failed to write response: %v", err)
+		}
 	}
 }
 
