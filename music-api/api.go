@@ -181,7 +181,12 @@ func GetMusic(w http.ResponseWriter, r *http.Request) {
 
 	// Extract id from URL path: /musics/{id}
 	path := path.Base(r.URL.Path)
-	id, _ := strconv.Atoi(path)
+	id, err := strconv.Atoi(path)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("Failed to convert string: %v", err)
+		return
+	}
 
 	// Get specific cached data from Redis
 	val, err := rdb.Get(ctx, path).Result()
@@ -214,7 +219,11 @@ func GetMusic(w http.ResponseWriter, r *http.Request) {
 			}
 
 			w.WriteHeader(http.StatusOK)
-			w.Write(data)
+
+			if _, err = w.Write(data); err != nil {
+				log.Printf("Failed to write response: %v", err)
+				return
+			}
 			return
 		}
 	}
@@ -232,7 +241,12 @@ func DeleteMusic(w http.ResponseWriter, r *http.Request) {
 
 	// Extract id from URL path: /musics/{id}
 	path := path.Base(r.URL.Path)
-	id, _ := strconv.Atoi(path)
+	id, err := strconv.Atoi(path)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("Failed to convert string: %v", err)
+		return
+	}
 
 	result, err := db.Exec(`DELETE FROM musics WHERE id=$1;`, id)
 	if err != nil {
@@ -318,6 +332,9 @@ func UpdateMusic(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write(data)
+		if _, err = w.Write(data); err != nil {
+			log.Printf("Failed to write response: %v", err)
+			return
+		}
 	}
 }
