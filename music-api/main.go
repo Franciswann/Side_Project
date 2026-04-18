@@ -1,27 +1,34 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
-
-	"context"
+	"os"
 
 	"github.com/redis/go-redis/v9"
 )
 
 var ctx = context.Background()
+var db *sql.DB
 
 // Global Redis Client
-var rdb = redis.NewClient(&redis.Options{
-	Addr:     "localhost:6379",
-	Password: "",
-	DB:       0,
-})
+var rdb *redis.Client
 
+// Initialize Redis connection
 // Use Ping() to test if Redis is connected
-func testRedisConnections() {
+func initRedis() {
+	// Retrieve the value from .env
+	redisHost := os.Getenv("REDIS_HOST")
+	redisPort := os.Getenv("REDIS_PORT")
+
+	rdb = redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%s:%s", redisHost, redisPort),
+		Password: "",
+		DB:       0,
+	})
 
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil {
@@ -33,9 +40,19 @@ func testRedisConnections() {
 
 // This Music API can let user Create, Read, Update nad Delete musics
 func main() {
-	testRedisConnections()
-	// connecting to pq driverç
-	connStr := "host=localhost port=5432 user=wanchaochun dbname=music_db sslmode=disable"
+	// Initialize Redis
+	initRedis()
+
+	// Initialize PostgreSQL
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbUser := os.Getenv("DB_USER")
+	dbName := os.Getenv("DB_NAME")
+	dbPass := os.Getenv("DB_PASSWORD")
+
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", dbHost, dbPort, dbUser, dbPass, dbName)
+
+	// connecting to pq driver
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
@@ -43,20 +60,23 @@ func main() {
 	}
 	defer db.Close()
 
+	// Test connection
 	err = db.Ping()
 	if err != nil {
 		log.Fatal(err)
 	} else {
-		fmt.Println("Connected to PostgreSQL")
+		log.Println("Connected to PostgreSQL successfully")
 	}
 
+	// Initialize database
 	err = initDB()
 	if err != nil {
 		log.Println("insert failed:", err)
 	} else {
-		fmt.Println("insert succeed")
+		log.Println("insert initial data successfully")
 	}
 
+	// route setting
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /musics", ListMusics)
 	// GetMusic handles GET requests to /musics/{id}
@@ -66,7 +86,7 @@ func main() {
 	mux.HandleFunc("DELETE /musics/{id}", DeleteMusic)
 	mux.HandleFunc("PUT /musics/{id}", UpdateMusic)
 
-	log.Println("Running...")
+	log.Println("Server is running on:8080...")
 
 	// ListenAndServe uses the configurable mux
 	// test it on terminal: curl http://localhost:8080/

@@ -2,7 +2,7 @@
 
 # Stage 1: Build and compile
 # Use the golang image from Docker Hub
-FROM golang:1.25-alpine AS base
+FROM golang:1.25.6-alpine AS base
 # Instruct Docker to use this DIR as the default destination
 WORKDIR /app
 
@@ -32,9 +32,9 @@ RUN go build -o /music-api .
 # Use Alpine Linux as environment
 FROM alpine:latest
 
-# Run command on /root/
-WORKDIR /root/
-
+# Run command on /app
+WORKDIR /app
+# Cpoy binary
 COPY --from=base /music-api .
 
 CMD ["./music-api"]
