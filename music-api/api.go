@@ -21,7 +21,6 @@ type Music struct {
 }
 
 var musics = make(map[int]Music)
-var db *sql.DB
 
 func init() {
 	musics[1] = Music{
