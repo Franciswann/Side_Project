@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -40,6 +41,13 @@ func initRedis() {
 
 // This Music API can let user Create, Read, Update nad Delete musics
 func main() {
+
+	// Load environment variables from .env.local for local development
+	loadErr := godotenv.Load(".env.local")
+	if loadErr != nil {
+		log.Printf("Warning: .env.local not found, using default environment variables")
+	}
+
 	// Initialize Redis
 	initRedis()
 
@@ -86,7 +94,7 @@ func main() {
 	mux.HandleFunc("DELETE /musics/{id}", DeleteMusic)
 	mux.HandleFunc("PUT /musics/{id}", UpdateMusic)
 
-	log.Println("Server is running on:8080...")
+	log.Println("Server is running on: 8080...")
 
 	// ListenAndServe uses the configurable mux
 	// test it on terminal: curl http://localhost:8080/
