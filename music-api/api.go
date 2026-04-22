@@ -22,6 +22,12 @@ type Music struct {
 
 var musics = make(map[int]Music)
 
+// // MusicService handles music operations with dependency injection
+// type MusicService struct {
+// 	DB  *sql.DB
+// 	rdb *redis.Client
+// }
+
 func init() {
 	musics[1] = Music{
 		Id:     1,
@@ -103,7 +109,6 @@ func ListMusics(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// Return cached data
 		w.WriteHeader(http.StatusOK)
-
 		if _, err = w.Write([]byte(val)); err != nil {
 			log.Printf("Failed to write response: %v", err)
 			return
