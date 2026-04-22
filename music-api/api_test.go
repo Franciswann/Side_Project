@@ -1,97 +1,182 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
-	"maps"
+	"log"
 	"net/http"
 	"net/http/httptest"
-	"strings"
+	"os"
 	"testing"
+
+	"github.com/redis/go-redis/v9"
 )
 
+// Truncate data table and insert testing data
+func setupTestDB(t *testing.T) {
+
+	// Truncate table
+	_, err := db.Exec(`TRUNCATE TABLE musics RESTART IDENTITY;`)
+	if err != nil {
+		t.Errorf("Failed to truncate table: %v", err)
+	}
+
+	// Insert test data
+	testMusic := []Music{
+		{Title: "Always", Artist: "Daniel Caesar"},
+		{Title: "Die For You", Artist: "Joji"},
+	}
+
+	for _, music := range testMusic {
+		query := `INSERT INTO musics (title, artist)
+				  VALUES ($1, $2)
+				  ON CONFLICT (title, artist) DO NOTHING;`
+		_, err := db.Exec(query, music.Title, music.Artist)
+		if err != nil {
+			t.Errorf("Failed to insert music: %v", err)
+		}
+	}
+}
+
+func TestMain(m *testing.M) {
+	// Initialize db connection
+	connStr := "host=localhost port=5432 user=wanchaochun password=password dbname=music_db sslmode=disable"
+	var err error
+	db, err = sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	// Initialize redis connection
+	if rdb == nil {
+		rdb = redis.NewClient(&redis.Options{
+			Addr:     "localhost:6379",
+			Password: "",
+			DB:       0,
+		})
+
+		_, err := rdb.Ping(ctx).Result()
+		if err != nil {
+			log.Printf("connection failed: %s", err)
+		} else {
+			log.Printf("Connected to Redis successfully")
+		}
+		defer rdb.Close()
+	}
+
+	// Execute all tests
+	code := m.Run()
+
+	os.Exit(code)
+}
+
 func TestListMusics(t *testing.T) {
-	req := httptest.NewRequest("GET", "http://localhost:8080/musics", nil)
+	// Setup test data
+	setupTestDB(t)
+
+	// defer func() {
+	// 	if db != nil {
+	// 		db.Close()
+	// 		db = nil
+	// 	}
+	// 	if rdb != nil {
+	// 		rdb.Close()
+	// 		rdb = nil
+	// 	}
+	// }()
+
+	// Clear Redis cache
+	rdb.Del(ctx, "all_musics")
+
+	req := httptest.NewRequest("GET", "/musics", nil)
 	recorder := httptest.NewRecorder()
 
 	// because HandlerFunc already implement ServeHTTP, so
 	// ListMusics can seen as Handler
 	ListMusics(recorder, req)
 
-	t.Run("check http status code", func(t *testing.T) {
+	// Parsing response data
+	var music []Music
+	err := json.Unmarshal(recorder.Body.Bytes(), &music)
+	if err != nil {
+		t.Errorf("Failed to unmarshal response: %v", err)
+	}
 
+	// Test status code
+	t.Run("Validate http status code", func(t *testing.T) {
 		if status := recorder.Code; status != http.StatusOK {
 			t.Errorf("got %v, want %v", status, http.StatusOK)
 		}
 	})
 
-	t.Run("check the data has been writen", func(t *testing.T) {
-		var music []Music
-		err := json.Unmarshal(recorder.Body.Bytes(), &music)
-		if err != nil {
-			t.Errorf("%v", err)
+	// Test response data
+	t.Run("Validate data amount", func(t *testing.T) {
+		// check if the length == 2
+		got := len(music)
+		if got != 2 {
+			t.Errorf("Expected 2 items, got %d", got)
+		}
+	})
+
+	// Test specified data
+	t.Run("Validate specific titles in response", func(t *testing.T) {
+		expectedTitles := map[string]bool{
+			"Always":      false,
+			"Die For You": false,
 		}
 
-		got := len(music)
-		want := 3
-		if got != want {
-			t.Errorf("got %d, want %d", got, want)
+		for _, data := range music {
+			if _, ok := expectedTitles[data.Title]; ok {
+				expectedTitles[data.Title] = true
+			}
 		}
+
+		for title, found := range expectedTitles {
+			if !found {
+				t.Errorf("Expected title '%s', not found in response", title)
+			}
+		}
+
 	})
 }
 
-// create an body with header and then test its result, status code
-func TestCreateMusic(t *testing.T) {
+func TestGetMusic(t *testing.T) {
+	// Setup test data
+	setupTestDB(t)
 
-	var newMusic Music
+	// Clear Redis cache
+	rdb.Del(ctx, "all_musics")
 
-	// back up global map 'musics'
-	originalMusics := maps.Clone(musics)
+	t.Run("If id exist, return status 200 and its json", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/musics/1", nil)
+		recorder := httptest.NewRecorder()
+		GetMusic(recorder, req)
 
-	jsonBody := `{"title":"Sparks","artist":"Coldplay"}`
+		var musicStruct Music
+		log.Printf("!!!: %v", recorder.Body)
+		if err := json.Unmarshal(recorder.Body.Bytes(), &musicStruct); err != nil {
+			t.Errorf("Failed to decode response: %v", err)
+		}
 
-	// request contains a io.Reader from strings.NewReader
-	req := httptest.NewRequest("POST", "/musics", strings.NewReader(jsonBody))
-	req.Header.Set("Content-Type", "application/json")
-	recorder := httptest.NewRecorder()
+		got := Music{Title: musicStruct.Title, Artist: musicStruct.Artist}
+		want := Music{Title: "Always", Artist: "Daniel Caesar"}
+		if got != want {
+			t.Errorf("Expected info: %v, got: %v", want, got)
+		}
 
-	CreateMusic(recorder, req)
-
-	// decode the response body to get the created music with ID
-	if err := json.NewDecoder(recorder.Body).Decode(&newMusic); err != nil {
-		t.Errorf("Failed to decode response: %v", err)
-	}
-
-	t.Run("check Header's validation", func(t *testing.T) {
-		if got := recorder.Header().Get("Content-Type"); got != "application/json" {
-			t.Errorf("got %s, want %s", got, "application/json")
+		if recorder.Code != http.StatusOK {
+			t.Errorf("Expected status code: %d, got: %d", http.StatusOK, recorder.Code)
 		}
 	})
 
-	t.Run("test status code = StatusCreated 201", func(t *testing.T) {
-		if got := recorder.Code; got != http.StatusCreated {
-			t.Errorf("got %v, want %v", got, http.StatusCreated)
+	t.Run("If id not exist return status 404", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/musics/0", nil)
+		recorder := httptest.NewRecorder()
+		GetMusic(recorder, req)
+
+		if recorder.Code != http.StatusNotFound {
+			t.Errorf("Expected status code: %d, got: %d", http.StatusNotFound, recorder.Code)
 		}
 	})
-
-	t.Run("check if the music ID is the newest one", func(t *testing.T) {
-		if newMusic.Id != len(originalMusics)+1 {
-			t.Errorf("got %d, want %d", newMusic.Id, len(musics))
-		}
-	})
-
-	//  (using parsed response, not map)
-	t.Run("verify the created music matches expectations", func(t *testing.T) {
-		want := Music{
-			Id:     len(originalMusics) + 1,
-			Title:  "Sparks",
-			Artist: "Coldplay",
-		}
-		if newMusic != want {
-			t.Errorf("got %v, want %v", newMusic, want)
-		}
-	})
-
-	// restore data
-	musics = maps.Clone(originalMusics)
-
 }
