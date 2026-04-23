@@ -1,10 +1,12 @@
-package main
+package handler
 
 import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
+	"music-api/internal/database"
+	"music-api/internal/model"
 	"net/http"
 	"path"
 	"strconv"
@@ -14,73 +16,27 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type Music struct {
-	Id     int    `json:"id"`
-	Title  string `json:"title"`
-	Artist string `json:"artist"`
-}
-
-var musics = make(map[int]Music)
-
-// // MusicService handles music operations with dependency injection
-// type MusicService struct {
-// 	DB  *sql.DB
-// 	rdb *redis.Client
-// }
-
-func init() {
-	musics[1] = Music{
-		Id:     1,
-		Title:  "Perfect",
-		Artist: "Ed Sheeran",
-	}
-	musics[2] = Music{
-		Id:     2,
-		Title:  "Always",
-		Artist: "Daniel Caesar",
-	}
-	musics[3] = Music{
-		Id:     3,
-		Title:  "Die For You",
-		Artist: "Joji",
-	}
-}
-
-func initDB() error {
-	// insert initial data to table 'musics' with conflict handling
-	for _, music := range musics {
-		query := `INSERT INTO musics (title, artist) 
-				  VALUES ($1, $2) 
-				  ON CONFLICT (title, artist) DO NOTHING;`
-		_, err := db.Exec(query, music.Title, music.Artist)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // ListMusics list all the musics
 func ListMusics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	val, err := rdb.Get(ctx, "all_musics").Result()
+	val, err := database.RDB.Get(database.Ctx, "all_musics").Result()
 
 	// if key does not exist, extract data from database and store data into Redis
 	if err == redis.Nil {
 
-		rows, err := db.Query("SELECT * FROM musics")
+		rows, err := database.DB.Query("SELECT * FROM musics")
 		if err != nil {
 			log.Println(err)
 		}
 		defer rows.Close()
 
-		musicList := []Music{}
+		musicList := []model.Music{}
 
 		// reverse musics data table and append into musicList
 		for rows.Next() {
 			// musicList := []Music{}
-			var musicInRows Music
+			var musicInRows model.Music
 			if err := rows.Scan(&musicInRows.Id, &musicInRows.Title, &musicInRows.Artist); err != nil {
 				log.Println(err)
 			}
@@ -94,7 +50,7 @@ func ListMusics(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// store cache data in redis with 5-minute expiration
-		err = rdb.Set(ctx, "all_musics", data, 5*time.Minute).Err()
+		err = database.RDB.Set(database.Ctx, "all_musics", data, 5*time.Minute).Err()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -120,7 +76,7 @@ func ListMusics(w http.ResponseWriter, r *http.Request) {
 func CreateMusic(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var newMusic Music
+	var newMusic model.Music
 
 	if err := json.NewDecoder(r.Body).Decode(&newMusic); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -130,7 +86,7 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 		// Check if music with same title and artist already exists
 		var existingId int
 		checkQuery := `SELECT id FROM musics WHERE title=$1 AND artist=$2`
-		err := db.QueryRow(checkQuery, newMusic.Title, newMusic.Artist).Scan(&existingId)
+		err := database.DB.QueryRow(checkQuery, newMusic.Title, newMusic.Artist).Scan(&existingId)
 
 		// Music already exists
 		if err == nil {
@@ -146,7 +102,7 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 				  VALUES ($1, $2)
 				  RETURNING id;`
 
-		if err := db.QueryRow(query, newMusic.Title, newMusic.Artist).Scan(&newMusic.Id); err != nil {
+		if err := database.DB.QueryRow(query, newMusic.Title, newMusic.Artist).Scan(&newMusic.Id); err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			if _, err = w.Write([]byte("Failed to create music")); err != nil {
@@ -162,7 +118,7 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Invalidate cache - data has changed
-		err = rdb.Del(ctx, "all_musics").Err()
+		err = database.RDB.Del(database.Ctx, "all_musics").Err()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			if _, err = w.Write([]byte(fmt.Sprintf("Failed to invalidate cache: %v", err))); err != nil {
@@ -181,7 +137,7 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 func GetMusic(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var searchedMusic Music
+	var searchedMusic model.Music
 
 	// Extract id from URL path: /musics/{id}
 	path := path.Base(r.URL.Path)
@@ -193,11 +149,11 @@ func GetMusic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get specific cached data from Redis
-	val, err := rdb.Get(ctx, path).Result()
+	val, err := database.RDB.Get(database.Ctx, path).Result()
 
 	// Music doesn't exist in Redis, extract data from Postgres and cache into Redis
 	if err == redis.Nil {
-		err := db.QueryRow(`SELECT id, title, artist FROM musics WHERE id=$1;`, id).Scan(&searchedMusic.Id, &searchedMusic.Title, &searchedMusic.Artist)
+		err := database.DB.QueryRow(`SELECT id, title, artist FROM musics WHERE id=$1;`, id).Scan(&searchedMusic.Id, &searchedMusic.Title, &searchedMusic.Artist)
 		switch {
 		// couldn't find the music
 		case err == sql.ErrNoRows:
@@ -216,7 +172,7 @@ func GetMusic(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// store cache data in redis with 3-minute expiration
-			err = rdb.Set(ctx, path, data, 3*time.Minute).Err()
+			err = database.RDB.Set(database.Ctx, path, data, 3*time.Minute).Err()
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -252,7 +208,7 @@ func DeleteMusic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := db.Exec(`DELETE FROM musics WHERE id=$1;`, id)
+	result, err := database.DB.Exec(`DELETE FROM musics WHERE id=$1;`, id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Printf("Delete error: %v", err)
@@ -274,7 +230,7 @@ func DeleteMusic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Invalidate cache - data has changed
-	err = rdb.Del(ctx, "all_musics", path).Err()
+	err = database.RDB.Del(database.Ctx, "all_musics", path).Err()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(fmt.Sprintf("Failed to invalidate cache: %v", err)))
@@ -288,7 +244,7 @@ func DeleteMusic(w http.ResponseWriter, r *http.Request) {
 func UpdateMusic(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var updateMusic Music
+	var updateMusic model.Music
 
 	// Parse and decode JSON request body
 	if err := json.NewDecoder(r.Body).Decode(&updateMusic); err != nil {
@@ -305,7 +261,7 @@ func UpdateMusic(w http.ResponseWriter, r *http.Request) {
 						SET title=$1, artist=$2
 						WHERE id=$3
 						RETURNING id, title, artist;`
-		err := db.QueryRow(updateQuery, updateMusic.Title, updateMusic.Artist, id).Scan(&updateMusic.Id, &updateMusic.Title, &updateMusic.Artist)
+		err := database.DB.QueryRow(updateQuery, updateMusic.Title, updateMusic.Artist, id).Scan(&updateMusic.Id, &updateMusic.Title, &updateMusic.Artist)
 
 		// Music not found
 		if err == sql.ErrNoRows {
@@ -329,7 +285,7 @@ func UpdateMusic(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Invalidate cache - data has changed
-		err = rdb.Del(ctx, "all_musics").Err()
+		err = database.RDB.Del(database.Ctx, "all_musics").Err()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(fmt.Sprintf("Failed to invalidate cache: %v", err)))

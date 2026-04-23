@@ -22,9 +22,9 @@ EXPOSE 8080
 
 # RUN run the command in container
 
-# build a static binary file (main) into root(/) and then
-# run it in a minimal final stage (alpine)
-RUN go build -o /music-api .
+# Build a static binary file (main) from cmd/app/main.go and output
+# to /app/music-api and then run it in a minimal final stage (alpine)
+RUN go build -o /music-api ./cmd/app/
 
 # ========================================
 
