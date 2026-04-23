@@ -2,29 +2,39 @@
 
 A RESTful Music API built with Go, upgraded from in-memory storage to PostgreSQL + Redis cache, and containerized with Docker.
 
-## Features
-- GET `/musics` - List all musics with Redis caching
-- POST `/musics` - Create a new music
-- GET `/musics/{id}` - Get a specific music with Redis caching
-- DELETE `/musics/{id}` - Delete a music
-- PUT `/musics/{id}` - Update a music
-
 ## Tech Stack
 - **Go**: Standard library only, no external frameworks
 - **PostgreSQL**: Persistent storage with connection pooling
 - **Redis**: Caching layer with automatic invalidation
 - **Testing**: Integration tests with TestMain setup for list & get endpoints
 - **Docker**: Multi-stage builds and orchestration
-- **API**: RESTful endpoints with proper error handling
+
+![Architecture Diagram](music_api_architecture_with_ports.svg)
+
+## Features
+- GET `/musics` - List all musics with Redis caching
+- POST `/musics` - Create a new music
+- GET `/musics/{id}` - Get a specific music with Redis caching
+- DELETE `/musics/{id}` - Delete a music
+- PUT `/musics/{id}` - Update a music
+## Prerequisites
+
+**For Local Development**
+- PostgreSQL running on localhost:5432
+- Redis running on localhost:6379
+- Go installed (any recent version)
+- Docker Desktop running (for database setup)
 
 ## How to Run
 
 **Local Development**
 ``` bash
-go run .
-```
-or
+# Start database first
+docker compose up -d db redis
 
+# Then run the app
+go run ./cmd/app/main.go
+```
 **Docker Development**
 ``` bash
 docker compose up --build
@@ -32,6 +42,7 @@ docker compose up --build
 ![alt text](image-5.png)
 
 ![alt text](image-3.png)
+
 
 ### Stop Containers
 Clean shutdown of all services (API, PostgreSQL, Redis).
@@ -45,7 +56,7 @@ docker compose down
 ## How to Test
 **Testing**
 ``` bash
-go test -v
+go test -v ./test/
 ```
 
 ## API Examples
@@ -73,4 +84,4 @@ Example of `GET`:
 - Implemented **Redis cache** with invalidation
 - Handled **JSON** encoding/decoding and proper **HTTP status codes**
 - Practiced **TDD** and wrote integration tests with `httptest`
-- Containerized the application with **Docker**
+- Conquered **Docker orchestration** - overcame complex setup challenges to achieve true cross-platform deployment
