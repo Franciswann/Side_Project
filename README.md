@@ -11,7 +11,6 @@ This repository contains my side projects for practicing Go and backend developm
     - **Features**: Complete CRUD operations, caching, containerization, testing
     - **Architecture**: Industry-standard project structure with layered design
     - **Database**: Basic table design with indexes and constraints
-    - **Version**: [v2.0](https://github.com/Franciswann/Side_Project/releases/tag/v2.0) - Production Ready
 
 ### 📚 Learning Projects
 
