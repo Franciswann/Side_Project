@@ -39,9 +39,9 @@ go run ./cmd/app/main.go
 ``` bash
 docker compose up --build
 ```
-![alt text](image-5.png)
+![alt text](docker-compose-running.png)
 
-![alt text](image-3.png)
+![alt text](docker-compose-ui.png)
 
 
 ### Stop Containers
@@ -51,7 +51,7 @@ Clean shutdown of all services (API, PostgreSQL, Redis).
 ``` bash
 docker compose down
 ```
-![alt text](image.png)
+![alt text](docker-compose-stop.png)
 
 ## How to Test
 **Testing**
@@ -77,7 +77,7 @@ curl -v -X DELETE http://localhost:8080/musics/3
 ```
 
 Example of `GET`:
-![alt text](image-8.png)
+![alt text](api-response-example.png)
 
 ## Learning Points
 - Built full **CRUD** operations with **PostgreSQL**
