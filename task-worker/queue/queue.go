@@ -13,3 +13,12 @@ func NewQueue(size int) *Queue {
 	q := Queue{JobChannel: make(chan Job, size)}
 	return &q
 }
+
+func (q *Queue) Enqueue(job Job) {
+	q.JobChannel <- job
+}
+
+func (q *Queue) Dequeue() Job {
+	task := <-q.JobChannel
+	return task
+}
