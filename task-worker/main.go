@@ -1,12 +1,16 @@
 package main
 
 import (
-	"fmt"
+	"sync"
 
 	"github.com/Franciswann/Side_Project/task-worker/queue"
+	"github.com/Franciswann/Side_Project/task-worker/worker"
 )
 
+var wg sync.WaitGroup
+
 func main() {
+
 	q := queue.NewQueue(10)
 	task1 := queue.Job{ID: 1, Payload: "task-1"}
 	task2 := queue.Job{ID: 2, Payload: "task-2"}
@@ -16,8 +20,11 @@ func main() {
 	q.Enqueue(task3)
 	close(q.JobChannel)
 
-	for task := range q.JobChannel {
-		fmt.Printf("%v\n", task)
-	}
-
+	worker := worker.Worker{ID: 1}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		worker.Start(q)
+	}()
+	wg.Wait()
 }
