@@ -12,18 +12,22 @@ var wg sync.WaitGroup
 func main() {
 
 	q := queue.NewQueue(10)
-	task1 := queue.Job{ID: 1, Payload: "task-1"}
-	task2 := queue.Job{ID: 2, Payload: "task-2"}
-	task3 := queue.Job{ID: 3, Payload: "task-3"}
-	task4 := queue.Job{ID: 4, Payload: "task-4"}
-	task5 := queue.Job{ID: 5, Payload: "task-5"}
+	task1 := queue.Job{ID: 1, Payload: "task-1", MaxRetries: 3}
+	task2 := queue.Job{ID: 2, Payload: "task-2", MaxRetries: 3}
+	task3 := queue.Job{ID: 3, Payload: "task-3", MaxRetries: 3}
+	task4 := queue.Job{ID: 4, Payload: "task-4", MaxRetries: 3}
+	task5 := queue.Job{ID: 5, Payload: "task-5", MaxRetries: 3}
 	q.Enqueue(task1)
 	q.Enqueue(task2)
 	q.Enqueue(task3)
 	q.Enqueue(task4)
 	q.Enqueue(task5)
-	close(q.JobChannel)
+
+	wg.Add(len(q.JobChannel))
 
 	worker.StartPool(3, q, &wg)
+
 	wg.Wait()
+	close(q.JobChannel)
+
 }

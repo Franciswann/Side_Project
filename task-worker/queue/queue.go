@@ -1,8 +1,10 @@
 package queue
 
 type Job struct {
-	ID      int
-	Payload string
+	ID         int
+	Payload    string
+	Retries    int
+	MaxRetries int
 }
 
 type Queue struct {
