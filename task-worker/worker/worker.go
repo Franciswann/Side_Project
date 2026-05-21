@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"sync"
+	"time"
 
 	"github.com/Franciswann/Side_Project/task-worker/queue"
 )
@@ -27,6 +28,7 @@ func (w *Worker) Start(q *queue.Queue, dlq *queue.Queue, wg *sync.WaitGroup) {
 			continue
 		}
 		// process successfully
+		time.Sleep(100 * time.Millisecond)
 		fmt.Printf("Worker %v processing: %v\n", w.ID, task)
 		wg.Done()
 	}
