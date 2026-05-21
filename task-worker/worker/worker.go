@@ -12,12 +12,12 @@ type Worker struct {
 	ID int
 }
 
-func (w *Worker) Start(q *queue.Queue, wg *sync.WaitGroup) {
+func (w *Worker) Start(q *queue.Queue, dlq *queue.Queue, wg *sync.WaitGroup) {
 	for task := range q.JobChannel {
 		// 30% fail
 		if rand.IntN(10) < 3 {
 			if task.Retries >= task.MaxRetries {
-				fmt.Printf("Job {%v} failed permanently\n", task.ID)
+				dlq.Enqueue(task)
 				wg.Done()
 				continue
 			}
@@ -33,12 +33,12 @@ func (w *Worker) Start(q *queue.Queue, wg *sync.WaitGroup) {
 }
 
 // Worker Pool
-func StartPool(numWorkers int, q *queue.Queue, wg *sync.WaitGroup) {
+func StartPool(numWorkers int, q *queue.Queue, dlq *queue.Queue, wg *sync.WaitGroup) {
 	for number := 0; number < numWorkers; number++ {
 		worker := Worker{ID: number + 1}
 
 		go func(w Worker) {
-			w.Start(q, wg)
+			w.Start(q, dlq, wg)
 		}(worker)
 	}
 }
