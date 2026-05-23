@@ -21,6 +21,6 @@ func (q *Queue) Enqueue(job Job) {
 }
 
 func (q *Queue) Dequeue() Job {
-	task := <-q.JobChannel
-	return task
+	job := <-q.JobChannel
+	return job
 }
