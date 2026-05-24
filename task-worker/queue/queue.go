@@ -20,6 +20,7 @@ func (q *Queue) Enqueue(job Job) {
 	q.JobChannel <- job
 }
 
+// Dequeue blocks until a job is available. Use for range q.JobChannel for continuous consumption.
 func (q *Queue) Dequeue() Job {
 	job := <-q.JobChannel
 	return job

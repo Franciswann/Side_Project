@@ -13,17 +13,16 @@ import (
 	"github.com/Franciswann/Side_Project/task-worker/worker"
 )
 
-var jobWg sync.WaitGroup
-var producerWg sync.WaitGroup
-
 func main() {
-	// Job Queue
+	var jobWg sync.WaitGroup
+	var producerWg sync.WaitGroup
+
 	q := queue.NewQueue(10)
-	// Dead Letter Queue
 	dlq := queue.NewQueue(10)
 
 	// context is used to gracefully stop the producer on shutdown
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	producer := producer.Producer{JobCount: 5}
 
