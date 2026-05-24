@@ -26,5 +26,4 @@ func (p *Producer) Start(ctx context.Context, q *queue.Queue, wg *sync.WaitGroup
 			q.Enqueue(task)
 		}
 	}
-
 }
