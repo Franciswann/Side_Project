@@ -78,10 +78,3 @@ curl -v -X DELETE http://localhost:8080/musics/3
 
 Example of `GET`:
 ![alt text](api-response-example.png)
-
-## Learning Points
-- Built full **CRUD** operations with **PostgreSQL**
-- Implemented **Redis cache** with invalidation
-- Handled **JSON** encoding/decoding and proper **HTTP status codes**
-- Practiced **TDD** and wrote integration tests with `httptest`
-- Conquered **Docker orchestration** - overcame complex setup challenges to achieve true cross-platform deployment
