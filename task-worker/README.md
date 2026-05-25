@@ -6,7 +6,8 @@ A concurrent task worker system built with Go that processes jobs asynchronously
 
 This project simulates a real-world backend job processing system where a producer continuously generates tasks, a pool of workers processes them concurrently, failed jobs are automatically retried, and jobs that exceed the retry limit are isolated in a dead-letter queue.
 
-![Architecture Diagram](task_worker_architecture.svg)
+![alt text](<task-worker architecture.png>)
+
 
 ## Features
 
