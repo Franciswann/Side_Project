@@ -34,7 +34,7 @@ FROM alpine:latest
 
 # Run command on /app
 WORKDIR /app
-# Cpoy binary
+# Copy binary
 COPY --from=base /music-api .
 
 CMD ["./music-api"]

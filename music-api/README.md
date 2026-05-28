@@ -56,6 +56,10 @@ docker compose down
 ## How to Test
 **Testing**
 ``` bash
+# Start required services first
+docker compose up -d db redis
+ 
+# Then run tests
 go test -v ./test/
 ```
 
