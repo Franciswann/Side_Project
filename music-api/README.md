@@ -11,6 +11,23 @@ A RESTful Music API built with Go, upgraded from in-memory storage to PostgreSQL
 
 ![Architecture Diagram](music_api_architecture_with_ports.svg)
 
+## Cache Performance Benchmark
+
+Tested with Apache Bench: 1,000 requests, 50 concurrent connections on `GET /musics/:id`.
+
+| | Without Cache (cold) | With Cache (warm) |
+|---|---|---|
+| Mean response time | 6.1 ms | 3.0 ms |
+| Requests per second | 8,198 req/s | 16,735 req/s |
+
+**Result: 51% faster response time, 2x throughput improvement after Redis cache warms up.**
+
+**Without cache (cold start)**
+![benchmark-cache-cold](benchmark-cache-cold.png)
+
+**With cache (warm)**
+![benchmark-cache-warm](benchmark-cache-warm.png)
+
 ## Features
 - GET `/musics` - List all musics with Redis caching
 - POST `/musics` - Create a new music
