@@ -9,7 +9,8 @@ A RESTful Music API built with Go, upgraded from in-memory storage to PostgreSQL
 - **Testing**: Integration tests with TestMain setup for list & get endpoints
 - **Docker**: Multi-stage builds and orchestration
 
-![Architecture Diagram](music_api_architecture_with_ports.svg)
+<!-- ![Architecture Diagram](music_api_architecture_with_ports.svg) -->
+<img src="music_api_architecture_with_ports.svg" alt="Architecture Diagram">
 
 ## Cache Performance Benchmark
 
