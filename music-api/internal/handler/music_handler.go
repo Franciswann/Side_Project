@@ -133,6 +133,32 @@ func CreateMusic(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// writeMusicFromDB queries Postgres directly (no Redis) and writes the response.
+func writeMusicFromDB(w http.ResponseWriter, db *sql.DB, id int) {
+	var searchedMusic model.Music
+	err := db.QueryRow(`SELECT id, title, artist FROM musics WHERE id=$1;`, id).Scan(&searchedMusic.Id, &searchedMusic.Title, &searchedMusic.Artist)
+	switch {
+	case err == sql.ErrNoRows:
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(fmt.Sprintf("no music with id %d", id)))
+		return
+	case err != nil:
+		log.Printf("query error: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	default:
+		data, err := json.Marshal(searchedMusic)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		if _, err = w.Write(data); err != nil {
+			log.Printf("Failed to write response: %v", err)
+		}
+	}
+}
+
 // GetMusic fetch specific music
 func GetMusic(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -145,6 +171,13 @@ func GetMusic(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Printf("Failed to convert string: %v", err)
+		return
+	}
+
+	// CacheEnabled=false: skip Redis entirely and always hit Postgres.
+	// Used as the no-cache baseline for the benchmark comparison.
+	if !database.CacheEnabled {
+		writeMusicFromDB(w, database.DB, id)
 		return
 	}
 

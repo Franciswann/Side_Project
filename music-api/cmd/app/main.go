@@ -41,6 +41,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// CACHE_ENABLED=false lets handlers bypass Redis entirely (used to
+	// benchmark the no-cache baseline against the cached path)
+	database.CacheEnabled = os.Getenv("CACHE_ENABLED") != "false"
+	log.Printf("Cache enabled: %v", database.CacheEnabled)
+
 	// route setting
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /musics", handler.ListMusics)

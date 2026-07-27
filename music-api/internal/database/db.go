@@ -14,6 +14,10 @@ var (
 	DB  *sql.DB
 	RDB *redis.Client
 	Ctx = context.Background()
+
+	// CacheEnabled toggles whether handlers read/write through Redis.
+	// Used to benchmark a no-cache baseline against the Postgres-only path.
+	CacheEnabled = true
 )
 
 var musics = make(map[int]model.Music)
